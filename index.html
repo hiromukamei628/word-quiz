@@ -17,7 +17,7 @@
             input[type="text"]{width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; cursor: pointer;}
             .btn{width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;}
             .btn-danger{background: #dc2626; padding: 6px 12px; width: auto; font-size:0.85rem;}
-            .quiz-question{font-size: 1.5rem; font-weight: bold; text-align: center; margin: 20px 0;}
+            .quiz-question{font-size: 1.5rem; font-weight: bold; text-align: center; margin: 20px 0; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; max-height: 35vh; overflow-y:auto; padding: 0 8px; box-sizing: border-box;}
             .result-msg{text-align: center; font-weight: bold; min-height: 1.5em; margin: 15px 0;}
             .stats{display: flex; justify-content: space-around; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 20px; color: #64748b;}
             .word-list{list-style: none; padding: 0; margin-top: 15px; max-height: 300px; overflow-y: auto;}
@@ -88,7 +88,7 @@
                 document.getElementById('tab-quiz').classList.add('active');
                 updateQuizScreen();
             }else{
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('tab-settings').classList.add('active');
                 renderWordList();
             }
