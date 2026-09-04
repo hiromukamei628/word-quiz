@@ -126,7 +126,7 @@
             //localStorage.setItem('wasm_stats', JSON.stringify(stats));
         }
 
-        function updateQuizScreen(pickRandom=false){
+        function updateQuizScreen(pickRandom=true){
             const total = Module._get_card_count();
             if(total===0){
                 document.getElementById('quiz-box').style.display='none';
