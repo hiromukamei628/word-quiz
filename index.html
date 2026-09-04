@@ -77,7 +77,7 @@
 
     <script src="app_wasm.js"></script>
     <script>
-        let currentQuizIndex = 0;
+        let currentQuizIndex = -1;
         let stats = {correct:0, wrong:0};
 
         function switchTab(tab){
@@ -86,7 +86,7 @@
             if(tab == 'quiz'){
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
                 document.getElementById('tab-quiz').classList.add('active');
-                updateQuizScreen(true);
+                pickRandomQuiz();
             }else{
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('tab-settings').classList.add('active');
@@ -96,7 +96,7 @@
 
         Module.onRuntimeInitialized = function(){
             loadFromLocalStorage();
-            updateQuizScreen(true);
+            pickRandomQuiz();
         };
         
         //localStorageからデータ復元
@@ -126,18 +126,28 @@
             //localStorage.setItem('wasm_stats', JSON.stringify(stats));
         }
 
-        function updateQuizScreen(pickRandom=true){
+        function pickRandomQuiz(){
             const total = Module._get_card_count();
             if(total===0){
+                currentQuizIndex=-1;
+                document.getElementById('quiz-box').style.display='none';
+                document.getElementById('no-words-msg').style.display='block';
+                return;
+            }
+            currentQuizIndex = Math.floor(Math.random() * total);
+            renderCurrentQuiz();
+        }
+
+        function renderCurrentQuiz(){
+            const total = Module._get_card_count();
+            if(total===0 || currentQuizIndex<0 || currentQuizIndex>=total){
                 document.getElementById('quiz-box').style.display='none';
                 document.getElementById('no-words-msg').style.display='block';
                 return;
             }
             document.getElementById('quiz-box').style.display='block';
             document.getElementById('no-words-msg').style.display = 'none';
-            if(pickRandom || currentQuizIndex >= total){currentQuizIndex=Math.floor(Math.random()*total);
-            }
-
+            
             document.getElementById('quiz-question-text').innerText = Module.UTF8ToString(Module._get_question(currentQuizIndex));
             document.getElementById('user-answer').value='';
             document.getElementById('result-message').innerText='';
@@ -161,7 +171,7 @@
                 //currentQuizIndex = (currentQuizIndex+1)%total;
                 currentQuizIndex = Math.floor(Math.random()*total); //ランダムに出題
                 syncToLocalStorage();
-                setTimeout(updateQuizScreen,1200);
+                setTimeout(pickRandomQuiz,1200);
             }else{
                 msg.innerText='不正解';
                 msg.style.color='#dc2626';
@@ -189,7 +199,7 @@
                 Module._remove_card(i);
                 syncToLocalStorage();
                 renderWordList();
-                updateQuizScreen();
+                pickRandomQuiz();
             }
         }
 
