@@ -96,7 +96,7 @@
 
         Module.onRuntimeInitialized = function(){
             loadFromLocalStorage();
-            updateQuizScreen();
+            updateQuizScreen(true);
         };
         
         //localStorageからデータ復元
@@ -126,7 +126,7 @@
             //localStorage.setItem('wasm_stats', JSON.stringify(stats));
         }
 
-        function updateQuizScreen(){
+        function updateQuizScreen(pickRandom=false){
             const total = Module._get_card_count();
             if(total===0){
                 document.getElementById('quiz-box').style.display='none';
@@ -135,7 +135,8 @@
             }
             document.getElementById('quiz-box').style.display='block';
             document.getElementById('no-words-msg').style.display = 'none';
-            if(currentQuizIndex >= total)currentQuizIndex=0;
+            if(pickRandom || currentQuizIndex >= total){currentQuizIndex=Math.floor(Math.random()*total);
+            }
 
             document.getElementById('quiz-question-text').innerText = Module.UTF8ToString(Module._get_question(currentQuizIndex));
             document.getElementById('user-answer').value='';
