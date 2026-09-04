@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang = "ja">
+    <head>
+        <meta charset="UTF-8">
+        <title>単語帳アプリ</title>
+        <style>
+            body{font-family: sans-serif; background: #f8fafc; padding: 20px; display: flex; justify-content: center;}
+            .container{width: 100%; max-width:600px;}
+            .tabs{display: flex; gap: 10px; margin-bottom: 20px;}
+            .tab-btn{flex: 1; padding: 12px; border: 1px solid #cbd5e1; background: #e2e8f0; font-weight: bold; border-radius: 8px; cursor: pointer;}
+            .tab-btn.active{background: #2563eb; color: white; border-color: #2563eb;}
+            .card{background: white; border-radius:12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px;}
+            .tab-content{display: none;}
+            .tab-content.active{display:block;}
+            .form-group{margin-bottom: 15px;}
+            label{display: block; font-weight: 600; margin-bottom: 6px;}
+            input[type="text"]{width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; cursor: pointer;}
+            .btn{width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;}
+            .btn-danger{background: #dc2626; padding: 6px 12px; width: auto; font-size:0.85rem;}
+            .quiz-question{font-size: 1.5rem; font-weight: bold; text-align: center; margin: 20px 0;}
+            .result-msg{text-align: center; font-weight: bold; min-height: 1.5em; margin: 15px 0;}
+            .stats{display: flex; justify-content: space-around; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 20px; color: #64748b;}
+            .word-list{list-style: none; padding: 0; margin-top: 15px; max-height: 300px; overflow-y: auto;}
+            .word-item{display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0;}
+        </style>
+    </head>
+    <body>    
+
+    <div class = "container">
+        <h2>単語帳アプリ</h2>
+
+        <div class = "tabs">
+            <button class="tab-btn active" onclick="switchTab('quiz')">クイズモード</button>
+            <button class="tab-btn" onclick="switchTab('settings')">単語の登録・管理</button>
+        </div>
+
+        <!--クイズ画面-->
+        <div id="tab-quiz" class="tab-content active card">
+            <div id="quiz-box">
+                <div class="quiz-question" id="quiz-question-text">読み込み中...</div>
+                <div class="form-group">
+                    <input type="text" id="user-answer" placeholder="解答を入力" onkeypress="if(event.key==='Enter')submitAnswer()">
+                </div>
+                <button class="btn" onclick="submitAnswer()">回答する</button>
+                <div class="result-msg" id="result-message"></div>
+
+                <div class="stats">
+                    <div>正解：<strong id="stat-correct">0</strong></div>
+                    <div>不正解：<strong id="stat-wrong">0</strong></div>
+                    <div>登録数：<strong id="stat-total">0</strong></div>
+                </div>
+            </div>
+            <div id="no-words-msg" style="display:none; text-align:center; color:#94a3b8;">
+                    単語が登録されていません。「単語の登録・管理」から追加してください。
+            </div>
+        </div>
+
+        <!--設定画面-->
+        <div id="tab-settings" class="tab-content card">
+            <h3>新しい単語を追加</h3>
+            <div class="form-group">
+                <label>問題（例：apple）</label>
+                <input type="text" id="new-question">
+            </div>
+            <div class="form-group">
+                <label>解答（例：リンゴ）</label>
+                <input type="text" id="new-answer">
+            </div>
+            <button class="btn" onclick="addWord()">単語を追加</button>
+
+            <hr style="margin:20px 0; border:none; border-top:1px solid #e2e8f0">
+
+            <h3>登録済み単語一覧</h3>
+            <ul class="word-list" id="word-list-container"></ul>
+        </div>
+    </div>
+
+    <script src="app_wasm.js"></script>
+    <script>
+        let currentQuizIndex = 0;
+        let stats = {correct:0, wrong:0};
+
+        function switchTab(tab){
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(tab == 'quiz'){
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('tab-quiz').classList.add('active');
+                updateQuizScreen();
+            }else{
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('tab-settings').classList.add('active');
+                renderWordList();
+            }
+        }
+
+        Module.onRuntimeInitialized = function(){
+            loadFromLocalStorage();
+            updateQuizScreen();
+        };
+        
+        //localStorageからデータ復元
+        function loadFromLocalStorage(){
+            const savedWords = localStorage.getItem('wasm_cards');
+            if(savedWords){
+                const words = JSON.parse(savedWords);
+                Module._clear_cards();
+                words.forEach(w => Module.ccall('add_card', 'number', ['string', 'string'],[w.question, w.answer]));
+            }
+            //const savedStats = localStorage.getItem('wasm_stats');
+            //if(savedStats)stats=JSON.parse(savedStats);
+            stats={correct:0, wrong:0}; //統計はリセット
+        }
+
+        //C言語メモリの状態をlocalStorageに完全同期
+        function syncToLocalStorage(){
+            const total = Module._get_card_count();
+            const words = [];
+            for(let i=0;i<total;i++){
+                words.push({
+                    question:Module.UTF8ToString(Module._get_question(i)),
+                    answer: Module.UTF8ToString(Module._get_answer(i))
+                });
+            }
+            localStorage.setItem('wasm_cards', JSON.stringify(words));
+            //localStorage.setItem('wasm_stats', JSON.stringify(stats));
+        }
+
+        function updateQuizScreen(){
+            const total = Module._get_card_count();
+            if(total===0){
+                document.getElementById('quiz-box').style.display='none';
+                document.getElementById('no-words-msg').style.display='block';
+                return;
+            }
+            document.getElementById('quiz-box').style.display='block';
+            document.getElementById('no-words-msg').style.display = 'none';
+            if(currentQuizIndex >= total)currentQuizIndex=0;
+
+            document.getElementById('quiz-question-text').innerText = Module.UTF8ToString(Module._get_question(currentQuizIndex));
+            document.getElementById('user-answer').value='';
+            document.getElementById('result-message').innerText='';
+            document.getElementById('stat-correct').innerText=stats.correct;
+            document.getElementById('stat-wrong').innerText=stats.wrong;
+            document.getElementById('stat-total').innerText=total;
+        }
+
+        function submitAnswer(){
+            const total = Module._get_card_count();
+            if(total===0)return;
+            const input=document.getElementById('user-answer').value.trim();
+            if(!input)return;
+
+            const isCorrect = Module.ccall('check_answer', 'number', ['number', 'string'],[currentQuizIndex, input]);
+            const msg = document.getElementById('result-message');
+            if(isCorrect===1){
+                msg.innerText = '正解！';
+                msg.style.color='#16a34a';
+                stats.correct++;
+                //currentQuizIndex = (currentQuizIndex+1)%total;
+                currentQuizIndex = Math.floor(Math.random()*total); //ランダムに出題
+                syncToLocalStorage();
+                setTimeout(updateQuizScreen,1200);
+            }else{
+                msg.innerText='不正解';
+                msg.style.color='#dc2626';
+                stats.wrong++;
+                syncToLocalStorage();
+            }
+        }
+
+        function addWord(){
+            const q = document.getElementById('new-question').value.trim();
+            const a = document.getElementById('new-answer').value.trim();
+            if(!q || !a)return alert('問題と解答を入力してください');
+
+            if(Module.ccall('add_card','number',['string','string'],[q,a])===1){
+                document.getElementById('new-question').value='';
+                document.getElementById('new-answer').value='';
+                syncToLocalStorage();
+                renderWordList();
+                alert('追加しました');
+            }
+        }
+
+        function deleteWord(i){
+            if(confirm('削除しますか？')){
+                Module._remove_card(i);
+                syncToLocalStorage();
+                renderWordList();
+                updateQuizScreen();
+            }
+        }
+
+        function renderWordList(){
+            const container=document.getElementById('word-list-container');
+            container.innerHTML='';
+            const total=Module._get_card_count();
+            for(let i=0;i<total;i++){
+                const q=Module.UTF8ToString(Module._get_question(i));
+                const a=Module.UTF8ToString(Module._get_answer(i));
+                const li=document.createElement('li');
+                li.className='word-item';
+                li.innerHTML=`<div><strong>${q}</strong> - <span style="color:#6478b">${a}</span></div><button class="btn btn-danger" onclick="deleteWord(${i})">削除</button>`;
+
+                container.appendChild(li);
+            }
+        }
+    </script>
+    </body>
+    </html>
+
+
+
